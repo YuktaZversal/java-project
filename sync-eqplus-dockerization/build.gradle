@@ -1,0 +1,43 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'eclipse'
+}
+
+sourceCompatibility = 1.8
+mainClassName = "com.quodd.EquityPlusSyncApplication"
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'EquityPlusSync', 'Implementation-Version': 1.0
+    }
+}
+
+repositories {
+    mavenCentral()
+     maven {
+        url = uri("https://maven.pkg.github.com/financeware/eqp-quodd-common")
+        credentials {
+	    username = project.findProperty("gpr.user") ?: "quodd-org-svc-account"
+            password = project.findProperty("gpr.token") ?: "secrets.ORG_SVC_ACCOUNT_TOKEN"
+        }
+    }
+}
+
+dependencies {
+      implementation group: 'com.quodd', name: 'quoddcommon', version: '1.0.4'
+      implementation group: 'io.github.cdimascio', name: 'java-dotenv', version: '5.2.2'
+}
+
+
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+    from {
+        configurations.runtimeClasspath.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    duplicatesStrategy = 'exclude'
+    with jar
+}

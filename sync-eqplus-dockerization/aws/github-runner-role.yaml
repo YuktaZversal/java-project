@@ -1,0 +1,219 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create runner role
+Parameters:
+  ProjectName:
+    Type: String
+    Description: "The project name all lowercase and kebab-case"
+    ConstraintDescription: "ProjectName must be lower case with dashes between each word"
+    MinLength: 5
+  Environment:
+    Type: String
+    Description: "The aws account environment"
+    AllowedValues:
+      - dev
+      - prod
+    Default: dev
+  AccountNumber:
+    Type: String
+    Description: "The aws account number to deploy into"
+    MinLength: 5
+  OidcProviderName:
+    Type: String
+    Description: "The name given to the OIDC provider (github)"
+    Default: "token.actions.githubusercontent.com" # in nonprod, we gave it this name
+    MinLength: 5
+  Region:
+    Type: String
+    Description: "The aws region to deploy into"
+Resources:
+  MyIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ["", [!Ref ProjectName, "-cicd-pipeline-role"]]
+      AssumeRolePolicyDocument: !Sub |
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Federated": "arn:aws:iam::${AccountNumber}:oidc-provider/${OidcProviderName}"
+                    },
+                    "Action": "sts:AssumeRoleWithWebIdentity",
+                    "Condition": {
+                        "StringLike": {
+                            "${OidcProviderName}:aud": "sts.amazonaws.com",
+                            "${OidcProviderName}:sub": "repo:financeware/${ProjectName}:environment:${Environment}"
+                        }
+                    }
+                }
+            ]
+        }
+      Policies:
+        - PolicyName: !Join ["", [!Ref ProjectName, "-cicd-runner-permissions"]]
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # Allow S3 GetObject and PutObject permissions for a specific S3 bucket and prefix.
+              - Effect: Allow
+                Action:
+                  - s3:ListAllMyBuckets
+                  - s3:ListBucket
+                  - s3:PutObjectTagging
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:Get*
+                  - s3:List*
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:PutBucketPolicy
+                  - s3:DeleteBucketPolicy
+                  - s3:PutEncryptionConfiguration
+                  - s3:PutBucketVersioning
+                  - s3:PutBucketTagging
+                  - s3:PutBucketPublicAccessBlock
+                Resource: !Sub 'arn:aws:s3:::synceqplus*'
+              - Effect: Allow
+                Action:
+                  - lambda:Get*
+                  - lambda:List*
+                  - lambda:CreateFunction
+                  - lambda:DeleteFunction
+                  - lambda:UpdateFunctionConfiguration
+                  - lambda:UpdateFunctionCode
+                  - lambda:PublishVersion
+                  - lambda:CreateAlias
+                  - lambda:DeleteAlias
+                  - lambda:UpdateAlias
+                  - lambda:AddPermission
+                  - lambda:RemovePermission
+                  - lambda:PutProvisionedConcurrencyConfig
+                Resource: !Sub 'arn:aws:lambda:${Region}:${AccountNumber}:function:synceqplus-*'
+              - Effect: Allow
+                Action: cloudfront:*
+                Resource:
+                  - !Sub 'arn:aws:cloudfront::${AccountNumber}:distribution/*'
+                  - !Sub 'arn:aws:cloudfront::${AccountNumber}:origin-access-identity/*'
+                  - !Sub 'arn:aws:cloudfront::${AccountNumber}:streaming-distribution/*'
+              - Effect: Allow
+                Action:
+                  - lambda:GetEventSourceMapping
+                  - lambda:CreateEventSourceMapping
+                  - lambda:DeleteEventSourceMapping
+                  - lambda:InvokeFunction
+                  - cloudfront:CreateCloudFrontOriginAccessIdentity
+                  - cloudfront:TagResource
+                  - cloudfront:CreateDistribution
+                  - cloudfront:DeleteDistribution
+                  - cloudfront:DeleteCloudFrontOriginAccessIdentity
+                  - cloudfront:UpdateCloudFrontOriginAccessIdentity
+                  - cloudfront:UpdateDistribution
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:Get*
+                  - logs:Describe*
+                  - logs:List*
+                  - logs:CreateLogGroup
+                  - logs:DeleteLogGroup
+                  - logs:PutResourcePolicy
+                  - logs:DeleteResourcePolicy
+                  - logs:PutRetentionPolicy
+                  - logs:DeleteRetentionPolicy
+                  - logs:TagLogGroup
+                  - logs:UntagLogGroup
+                  - logs:CreateLogDelivery
+                  - logs:UpdateLogDelivery
+                  - logs:DeleteLogDelivery
+                  - logs:CreateLogStream
+                Resource: '*'
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:CreateRepository
+                  - ecr:PutLifecyclePolicy
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:GetRepositoryPolicy
+                  - ecr:DescribeRepositories
+                  - ecr:ListImages
+                  - ecr:DescribeImages
+                  - ecr:BatchGetImage
+                  - ecr:GetLifecyclePolicy
+                  - ecr:GetLifecyclePolicyPreview
+                  - ecr:ListTagsForResource
+                  - ecr:DescribeImageScanFindings
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                  - ecr:setRepositoryPolicy
+                Resource: !Sub arn:aws:ecr:${Region}:${AccountNumber}:repository/synceqplus*
+              - Effect: Allow
+                Action:
+                  - ecr:DescribeImages
+                  - ecr:BatchGetImage
+                  - ecr:setRepositoryPolicy
+                  - ecr:getRepositoryPolicy
+                  - ecr:GetDownloadUrlForLayer
+                Resource: !Sub arn:aws:ecr:${Region}:${AccountNumber}:repository/quodd-authorizer
+              - Effect: Allow
+                Action:
+                  - iam:Get*
+                  - iam:List*
+                  - iam:PassRole
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:AttachRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:DetachRolePolicy
+                Resource: !Sub 'arn:aws:iam::${AccountNumber}:role/synceqplus*'
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeVpcs
+                  - ec2:CreateSecurityGroup
+                  - ec2:AuthorizeSecurityGroupIngress
+                  - ec2:CreateKeyPair
+                  - ec2:CreateTags
+                  - ec2:DeleteSecurityGroup
+                Resource: '*'
+              - Effect: Allow
+                Action: cloudformation:ValidateTemplate
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResource
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:ListStackResources
+                  - cloudformation:SetStackPolicy
+                  - cloudformation:UpdateStack
+                  - cloudformation:UpdateTerminationProtection
+                  - cloudformation:GetTemplate
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - apigateway:POST
+                  - apigateway:PUT
+                  - apigateway:PATCH
+                  - apigateway:DELETE
+                  - apigateway:GET
+                Resource: !Sub 'arn:aws:apigateway:${Region}::/*'

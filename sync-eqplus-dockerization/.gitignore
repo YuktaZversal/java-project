@@ -1,0 +1,44 @@
+# Compiled class files
+/build/
+/classes/
+/out/
+bin/
+
+# Gradle build directories
+.gradle/
+build/
+
+gradle.properties
+
+# IntelliJ IDEA files
+.idea/
+
+# Eclipse files
+.classpath
+.project
+.settings/
+
+# Compiled binary files
+*.class
+
+# Logs
+*.log
+
+# Dependency lock files
+gradle-wrapper.jar
+!gradle-wrapper.jar.sha256
+gradle-wrapper.properties
+
+# Package files
+*.jar
+*.war
+*.ear
+
+# IDE-specific files
+*.iml
+*.ipr
+*.iws
+
+# Miscellaneous
+.DS_Store
+Thumbs.db

@@ -1,0 +1,50 @@
+{
+    "rules": [
+        {
+            "rulePriority": 1,
+            "description": "Retain the Most Recent Image Tagged with 'latest' and 'main' Tags",
+            "selection": {
+                "tagStatus": "tagged",
+                "tagPrefixList": [
+                    "latest",
+                    "main"
+                ],
+                "countType": "imageCountMoreThan",
+                "countNumber": 1
+            },
+            "action": {
+                "type": "expire"
+            }
+        },
+        {
+            "rulePriority": 2,
+            "description": "Retain the Ten Latest Images Tagged with 'main'",
+            "selection": {
+                "tagStatus": "tagged",
+                "tagPrefixList": [
+                    "main"
+                ],
+                "countType": "imageCountMoreThan",
+                "countNumber": 5
+            },
+            "action": {
+                "type": "expire"
+            }
+        },
+        {
+            "rulePriority": 3,
+            "description": "Retain the Ten Latest Images Tagged with 'dev'",
+            "selection": {
+                "tagStatus": "tagged",
+                "tagPrefixList": [
+                    "dev"
+                ],
+                "countType": "imageCountMoreThan",
+                "countNumber": 10
+            },
+            "action": {
+                "type": "expire"
+            }
+        }
+    ]
+}

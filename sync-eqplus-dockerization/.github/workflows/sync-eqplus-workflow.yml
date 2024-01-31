@@ -1,0 +1,78 @@
+name: Deploy Dev To Amazon EC2
+
+on:
+  push:
+    branches:
+      - dockerization
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-2
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-dev:
+    name: Deploy sync-eqplus - Dev
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: ./sync-eqplus/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials - Dev
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: 
+          role-session-name: 
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set Permissions
+        run: chmod +x ./scripts/build-and-push-image-to-ecr.sh
+
+      - name: Build, tag, and push image to Amazon ECR - Dev
+        id: build-deploy-dev
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          ENVIRONMENT: dev
+        run: |
+          ./script/build-and-push-image-to-ecr.sh
+
+  deploy-prod:
+    name: Deploy sync-eqplus - Prod
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: [deploy-dev]
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: ./sync-eqplus/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials - Prod
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: 
+          role-session-name: 
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set Permissions
+        run: chmod +x ./scripts/build-and-push-image-to-ecr.sh
+
+      - name: Build, tag, and push image to Amazon ECR - prod
+        id: build-deploy-prod
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          ENVIRONMENT: prod
+        run: |
+          ./script/build-and-push-image-to-ecr.sh
